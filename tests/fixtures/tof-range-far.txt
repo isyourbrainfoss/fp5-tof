@@ -1,0 +1,7 @@
+RANGE mm=2165 status=6 obj=0
+RANGE mm=2090 status=0 obj=0
+RANGE mm=2146 status=0 obj=0
+RANGE mm=2098 status=0 obj=0
+RANGE mm=-60 status=7 obj=0
+RANGE mm=2145 status=0 obj=1
+RANGE mm=2092 status=6 obj=0

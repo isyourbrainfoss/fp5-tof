@@ -1,0 +1,35 @@
+/* Fairphone 5 ToF — local DTS draft, not mailed.
+ * Wiring from Android dtbo: stmvl53l3@29, IRQ gpio48, XSHUT gpio49,
+ * VDD VTOF_LDO_2P8 (gpio141). Paste into &i2c9 after nfc@8.
+ * Compatible st,vl53l3cx (IDENTIFICATION__MODEL_ID 0xEAAA).
+ */
+
+	tof@29 {
+		compatible = "st,vl53l3cx";
+		reg = <0x29>;
+
+		interrupts-extended = <&tlmm 48 IRQ_TYPE_EDGE_FALLING>;
+		reset-gpios = <&tlmm 49 GPIO_ACTIVE_LOW>;
+		vdd-supply = <&vreg_vtof_ldo_2p8>;
+
+		pinctrl-0 = <&tof_default>;
+		pinctrl-names = "default";
+	};
+
+/* under &tlmm */
+
+	tof_default: tof-default-state {
+		int-pins {
+			pins = "gpio48";
+			function = "gpio";
+			drive-strength = <2>;
+			bias-pull-up;
+		};
+
+		xshut-pins {
+			pins = "gpio49";
+			function = "gpio";
+			drive-strength = <2>;
+			bias-disable;
+		};
+	};

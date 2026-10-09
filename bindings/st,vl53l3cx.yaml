@@ -1,0 +1,62 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+# Local draft only. Do not mail.
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/proximity/st,vl53l3cx.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: ST VL53L3CX ToF ranging sensor
+
+maintainers:
+  - Song Qiang <songqiang1304521@gmail.com>
+  - Siratul Islam <email@sirat.me>
+
+description: |
+  ST VL53L3CX FlightSense time-of-flight ranger on I2C (default address 0x29).
+  IDENTIFICATION__MODEL_ID is 0xEAAA. Required vdd-supply; optional XSHUT
+  reset-gpios and a ranging-complete interrupt.
+
+properties:
+  compatible:
+    const: st,vl53l3cx
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+    description:
+      Ranging-complete interrupt (typically edge falling).
+
+  reset-gpios:
+    maxItems: 1
+    description:
+      Phandle to the XSHUT GPIO. Used for hardware reset (active low).
+
+  vdd-supply:
+    description: Regulator that provides power to the sensor.
+
+required:
+  - compatible
+  - reg
+  - vdd-supply
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        proximity@29 {
+            compatible = "st,vl53l3cx";
+            reg = <0x29>;
+            vdd-supply = <&vdd>;
+            interrupts-extended = <&gpio 23 IRQ_TYPE_EDGE_FALLING>;
+            reset-gpios = <&gpio 4 GPIO_ACTIVE_LOW>;
+        };
+    };
+...

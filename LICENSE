@@ -1,0 +1,10 @@
+GPL-2.0-only
+
+The kernel module in oot/ is GPL-2.0-only unless a file states otherwise.
+The userspace ranger, the Linux shim, and the Python helpers in this
+repository are GPL-2.0-only as well.
+
+third_party/VL53L3CX is the STM32duino VL53L3CX library and is
+BSD-3-Clause. See third_party/VL53L3CX/LICENSE.md. That license is not
+GPL. Keep the ST copyright and disclaimer with any redistribution of
+that directory. Do not use the ST name to endorse this repository.

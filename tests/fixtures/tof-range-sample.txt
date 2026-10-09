@@ -1,0 +1,3 @@
+RANGE mm=12 status=0 obj=0
+RANGE mm=13 status=0 obj=0
+RANGE mm=14 status=0 obj=0
