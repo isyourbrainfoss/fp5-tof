@@ -1,36 +1,99 @@
 # Fairphone 5 — VL53L3 time of flight
 
 Userspace ranger for the rear time-of-flight sensor on Fairphone 5
-(Qualcomm SM7325 / sc7280, postmarketOS). The part answers at I2C
-`0x29` on bus 9. `IDENTIFICATION__MODEL_ID` is `0xEAAA`, so this is a
-VL53L3CX, not a VL53L1X (`0xEACC`).
-
-It is not the STK33562 light and proximity sensor. That part is a
-separate device and is not what this tree talks to.
+(Qualcomm SM7325 / sc7280). The part is a VL53L3CX. It is not the
+STK33562 light and proximity sensor, which is a separate device and is
+not what this tree talks to.
 
 Status: **experimental**. Not upstream. Not an official Fairphone or
 distribution package. There is no IIO driver here. The binding and the
 board snippet are local drafts and have not been mailed.
 
-## Where this stands
+Ranging that returned millimetres was on kernel `7.2.0-nfc-test+`: a
+close target (`mm=11..14` on 2026-08-24), about half a metre
+(`mm=498..507`), and about 2.1 m (`mm=2090..2146`) on 2026-08-25. Those
+captures are `tests/fixtures/`. An earlier run used the hybrid boot
+image `boot-voice2-imx800-cma128-tof.img`, which spliced a node into
+the DTB. Luca's 7.2.y DTS still has only the comment `VL53L3 ToF @ 29`.
+That is not a working node. The edge kernel package 7.2.9-r0 was not
+installed on the phone these ranges were taken on, so 7.2.9 behaviour
+is unknown.
 
-On 2026-08-24 `fp5-tof-range` printed `RANGE mm=11..14 status=0` at a
-close target. The kernel was `7.2.0-nfc-test+`. `tof-rail` had enabled
-the `VTOF_LDO_2P8` regulator and XSHUT (TLMM 49) was held high. The ToF
-node was spliced into the hybrid boot image
-`boot-voice2-imx800-cma128-tof.img`.
+## Hardware
 
-The same ranger later read about half a metre (`mm=498..507`) and about
-2.1 m (`mm=2090..2146`) on 2026-08-25. Those captures are the fixtures
-under `tests/fixtures/`.
+Wiring from the Android `dtbo` overlay, checked against a live
+`i2ctransfer` on this phone.
 
-Mainline `drivers/iio/proximity/vl53l1x-i2c.c` does not range this
-silicon. Its model id is `0xEACC`, and on this part the L1X range
-register `0x0096` stays `0x0000`. Accepting `0xEAAA` in that driver is
-not enough: the L1X config blob does not range an L3. The compatible
-for a future series is `st,vl53l3cx`.
+| signal | where |
+| --- | --- |
+| Supply | `VTOF_LDO_2P8`, regulator `vreg_vtof_ldo_2p8`, GPIO 141, 2.8 V. Android name `camera_tof`. |
+| Bus | I2C bus 9 (`a84000`), address `0x29`. NFC (`9-0008`) is on the same bus. |
+| IRQ | TLMM GPIO 48, edge. Android `intr-gpio`. |
+| XSHUT | TLMM GPIO 49. Android `xsdn-gpio`. Active-low reset, held high to run. |
 
-## Repository layout
+`IDENTIFICATION__MODEL_ID` (`0x010f`) reads `0xEAAA`. A VL53L1X reads
+`0xEACC`. Firmware status `0x00E5` reads `0x03`. The L1X range register
+`0x0096` stays `0x0000`.
+
+```sh
+i2ctransfer -y 9 w2@0x29 0x01 0x0f r2
+```
+
+That transfer returned `0xea 0xaa` with the rail on and XSHUT high.
+
+The rail module exists because `VTOF_LDO_2P8` has no sysfs `enable`.
+GPIO 141 is hogged by a `regulator-fixed`, so userspace cannot turn the
+regulator on through sysfs. `oot/tof-rail.ko` calls
+`regulator_enable("VTOF_LDO_2P8")`. Removing the module drops the rail.
+The board DTS already had `vreg_vtof_ldo_2p8` and left it unused.
+
+This ranger does not request GPIO 48. With no driver bound, debugfs
+showed gpio 48 as an input, high, pull-up. XSHUT is held from
+userspace: `gpioset` on `gpiochip4` line 49 = 1. Do not touch NFC reset
+GPIO 38. NFC stayed powered across the ranging check that avoided that
+line.
+
+Mainline `drivers/iio/proximity/vl53l1x-i2c.c` probes this part and
+does not range it. The driver accepts a foreign model id and continues.
+The L1X config blob does not range an L3, so teaching that driver the
+id `0xEAAA` is not sufficient. A future compatible is `st,vl53l3cx`.
+The binding draft and `qcm6490-fairphone-fp5-tof.dtsi.snippet` have not
+been mailed.
+
+## Reproduce
+
+Host or phone. The ranger is C++17. pthread is not required.
+
+```sh
+make
+python3 tests/test_fp5_tof.py
+```
+
+`make` writes `./fp5-tof-range`. The kernel module needs an arm64 tree
+that already contains the `VTOF_LDO_2P8` regulator, built for the
+running kernel:
+
+```sh
+make -C oot KDIR=/path/to/kernel
+```
+
+On the phone:
+
+```sh
+sudo insmod oot/tof-rail.ko
+sudo gpioset -c /dev/gpiochip4 49=1 &
+sudo ./fp5-tof-range /dev/i2c-9
+```
+
+`fp5-tof-live.sh` enables the rail, holds XSHUT, and runs
+`fp5-tof-range --follow`.
+
+## Demo
+
+`fp5-tof-view.py` is a GTK4 window over `fp5-tof-live.sh`. It needs
+`sudo -n`. Quitting the window unloads `tof-rail`.
+
+## Layout
 
 ```
 fp5-tof-range.cpp   ST ULD ranger (millimetres on stdout)
@@ -42,41 +105,6 @@ oot/                tof-rail.ko, enables VTOF_LDO_2P8
 bindings/           draft st,vl53l3cx binding (not mailed)
 third_party/VL53L3CX   STM32duino library, BSD-3-Clause
 ```
-
-The board draft is `qcm6490-fairphone-fp5-tof.dtsi.snippet`.
-
-## Build
-
-Host or phone. The ranger is C++17. pthread is not required.
-
-```sh
-make
-python3 tests/test_fp5_tof.py
-```
-
-`make` writes `./fp5-tof-range`. The kernel module needs an arm64 tree
-that already has the `VTOF_LDO_2P8` regulator:
-
-```sh
-make -C oot KDIR=/path/to/kernel
-```
-
-## Run
-
-On the phone, after the module is built for the running kernel:
-
-```sh
-sudo insmod oot/tof-rail.ko
-sudo gpioset -c /dev/gpiochip4 49=1 &
-sudo ./fp5-tof-range /dev/i2c-9
-```
-
-`fp5-tof-live.sh` does those steps and then runs `fp5-tof-range --follow`.
-`fp5-tof-view.py` is a GTK4 window over that script. It needs `sudo -n`.
-Point the rear camera island at a wall. Quitting the view unloads
-`tof-rail`.
-
-The ranger does not request the NFC reset line. NFC shares this I2C bus.
 
 ## License
 
