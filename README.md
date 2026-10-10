@@ -1,5 +1,8 @@
 # Fairphone 5 — VL53L3 time of flight
 
+> **Note**
+> This is very experimental. Assume nothing here is written, or necessarily read through or fully understood, by a human unless stated, and that includes this text. Use it at your own risk, but you're encouraged to reuse any parts you find useful. The human work here is mainly ideas, testing in reality, and persistence with a vision.
+
 Userspace ranger for the rear time-of-flight sensor on Fairphone 5
 (Qualcomm SM7325 / sc7280). The part is a VL53L3CX. It is not the
 STK33562 light and proximity sensor, which is a separate device and is
