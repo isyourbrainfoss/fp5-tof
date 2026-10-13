@@ -1,6 +1,6 @@
-From b1fdb97e39eb6b6979185af33a4adafd844e10a9 Mon Sep 17 00:00:00 2001
+From bad3b004be89c3f4ef7ad18da2d997c9db2f015f Mon Sep 17 00:00:00 2001
 From: isyourbrainfoss <isyourbrainfoss@proton.me>
-Date: Tue, 13 Oct 2026 08:33:06 +0200
+Date: Tue, 13 Oct 2026 09:10:35 +0200
 Subject: [PATCH 2/3] iio: proximity: add an ST VL53L3CX driver
 
 The VL53L3CX boots on the same 16-bit register map as the VL53L1X and
@@ -18,17 +18,17 @@ ABI that sequence should fill: raw millimetres, scale 0.001.
 Signed-off-by: isyourbrainfoss <isyourbrainfoss@proton.me>
 ---
  MAINTAINERS                          |   7 +
- drivers/iio/proximity/Kconfig        |  16 ++
+ drivers/iio/proximity/Kconfig        |  17 ++
  drivers/iio/proximity/Makefile       |   1 +
  drivers/iio/proximity/vl53l3cx-i2c.c | 240 +++++++++++++++++++++++++++
- 4 files changed, 264 insertions(+)
+ 4 files changed, 265 insertions(+)
  create mode 100644 drivers/iio/proximity/vl53l3cx-i2c.c
 
 diff --git a/MAINTAINERS b/MAINTAINERS
-index 8014b9f82..1eb7a9c06 100644
+index f53047aa8..2ad335754 100644
 --- a/MAINTAINERS
 +++ b/MAINTAINERS
-@@ -25692,6 +25692,13 @@ S:	Maintained
+@@ -26009,6 +26009,13 @@ S:	Maintained
  F:	Documentation/devicetree/bindings/iio/proximity/st,vl53l0x.yaml
  F:	drivers/iio/proximity/vl53l1x-i2c.c
  
@@ -43,13 +43,14 @@ index 8014b9f82..1eb7a9c06 100644
  M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
  M:	Sasha Levin <sashal@kernel.org>
 diff --git a/drivers/iio/proximity/Kconfig b/drivers/iio/proximity/Kconfig
-index bb77fad2a..1a186aaf0 100644
+index bb77fad2a..681e7195b 100644
 --- a/drivers/iio/proximity/Kconfig
 +++ b/drivers/iio/proximity/Kconfig
-@@ -259,6 +259,22 @@ config VL53L1X_I2C
+@@ -259,6 +259,23 @@ config VL53L1X_I2C
  	  To compile this driver as a module, choose M here: the
  	  module will be called vl53l1x-i2c.
  
++
 +config VL53L3CX_I2C
 +	tristate "STMicroelectronics VL53L3CX ToF ranger sensor (I2C)"
 +	depends on I2C

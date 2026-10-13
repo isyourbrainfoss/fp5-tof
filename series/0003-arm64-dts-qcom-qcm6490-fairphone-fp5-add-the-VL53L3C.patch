@@ -1,6 +1,6 @@
-From ec4f97b3cafe62bf5b11ff1b8aab7d140bb4b353 Mon Sep 17 00:00:00 2001
+From 2fe34ed7d5e4ec90bf9dec5911ccbd32f78e405b Mon Sep 17 00:00:00 2001
 From: isyourbrainfoss <isyourbrainfoss@proton.me>
-Date: Tue, 13 Oct 2026 08:33:06 +0200
+Date: Tue, 13 Oct 2026 09:10:36 +0200
 Subject: [PATCH 3/3] arm64: dts: qcom: qcm6490-fairphone-fp5: add the VL53L3CX
 
 The rear time-of-flight sensor is a VL53L3CX at I2C address 0x29 on
@@ -19,10 +19,10 @@ Signed-off-by: isyourbrainfoss <isyourbrainfoss@proton.me>
  1 file changed, 37 insertions(+), 1 deletion(-)
 
 diff --git a/arch/arm64/boot/dts/qcom/qcm6490-fairphone-fp5.dts b/arch/arm64/boot/dts/qcom/qcm6490-fairphone-fp5.dts
-index 29d6265a1..8bac0b898 100644
+index f41ad446a..605753e66 100644
 --- a/arch/arm64/boot/dts/qcom/qcm6490-fairphone-fp5.dts
 +++ b/arch/arm64/boot/dts/qcom/qcm6490-fairphone-fp5.dts
-@@ -236,6 +236,9 @@ vreg_vtof_ldo_2p8: regulator-vtof-ldo-2p8 {
+@@ -206,6 +206,9 @@ vreg_vtof_ldo_2p8: regulator-vtof-ldo-2p8 {
  		gpio = <&tlmm 141 GPIO_ACTIVE_HIGH>;
  		enable-active-high;
  
@@ -32,7 +32,7 @@ index 29d6265a1..8bac0b898 100644
  		vin-supply = <&vreg_bob>;
  	};
  
-@@ -1005,7 +1008,19 @@ &i2c9 {
+@@ -934,7 +937,19 @@ &i2c9 {
  	status = "okay";
  
  	/* ST21NFC NFC @ 28 */
@@ -53,7 +53,7 @@ index 29d6265a1..8bac0b898 100644
  };
  
  &ipa {
-@@ -1595,6 +1610,20 @@ disp_reset_n_suspend: disp-reset-n-suspend-state {
+@@ -1421,6 +1436,20 @@ disp_reset_n_suspend: disp-reset-n-suspend-state {
  		bias-pull-down;
  	};
  
@@ -74,7 +74,7 @@ index 29d6265a1..8bac0b898 100644
  	usb_redrive_1v8_en_default: usb-redrive-1v8-en-default-state {
  		pins = "gpio61";
  		function = "gpio";
-@@ -1643,6 +1672,13 @@ aw86927_int_default: aw86927-int-default-state {
+@@ -1456,6 +1485,13 @@ aw86927_int_default: aw86927-int-default-state {
  		bias-pull-up;
  	};
  

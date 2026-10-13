@@ -1,4 +1,4 @@
-# VL53L3CX mainline draft
+# VL53L3CX series on Linux 7.3-rc7
 
 Not mailed. Do not send this series. Do not flash a kernel that
 contains the Fairphone 5 node while ranging still goes through
@@ -6,73 +6,49 @@ i2c-dev. An I2C client at 0x29 reserves that address.
 
 ## Base
 
-sc7280-mainline tag v7.2.0-sc7280, commit f875148cc9fc
-("fixup! drivers: gpu: drm: panel: Initial FT8722 support").
-Apply with `git am` from that commit. The patches were produced from
-a clean worktree of that commit. The local kernel branch is
-`fp5-vl53l3cx-draft` and is not pushed.
+Linux 7.3-rc7, commit 24a19b953 ("Linux 7.3-rc7"). This is the
+mainline base for a later submission. pmaports carries the same
+tag as `linux-postmarketos-mainline` (generic). That package, and
+this tree, do not have the sc7280-mainline q6voice, IMX800, or
+FT8722 pieces. The Fairphone 5 DTS uses the upstream Raydium
+RM692E5 panel compatible.
 
-The clean `&i2c9` in that tree is the NFC comment and the old VL53L3
-comment. A tree that already has an NFC child on `&i2c9` will not
-apply patch 3 cleanly.
+## Rebase
 
-## Decision
+`git am --3way` failed on patch 1. The clone is depth 1, so git
+could not build a fake ancestor for `st,vl53l0x.yaml`, and the
+context does not match: Siratul Islam's address in that file is
+`siratul.islam@linux.dev` (it was `email@sirat.me` on the 7.2.0
+draft). `git am --abort` left the tree clean. The binding change
+was applied by hand and keeps the current address. The driver
+patch and the DTS patch then applied with no further conflict
+(`git apply --check` on the DTS was clean before commit).
 
-The part is a VL53L3CX, model id 0xEAAA, not a VL53L1X (0xEACC).
-Mainline `vl53l1x-i2c.c` loads the 91-byte VL53L1X configuration and
-does not fail probe on a foreign id. That configuration does not range
-this silicon. The ST VL53LX API in userspace does.
-
-The series does not extend the VL53L1X driver and does not paste the
-ULD. It adds:
-
-1. `st,vl53l3cx` on the existing `st,vl53l0x.yaml` binding, with
-   `vdd-supply` required, matching how `st,vl53l1x` was added.
-   `bindings/st,vl53l3cx.yaml` in this repo is the earlier separate
-   draft. The series does not add that file upstream.
-2. `vl53l3cx-i2c`: enable vdd, release XSHUT, accept only model id
-   0xEAAA. `read_raw` returns `-EOPNOTSUPP`.
-3. The Fairphone 5 node. The 2.8 V rail is already `regulator-fixed`
-   on TLMM GPIO 141. IRQ is GPIO 48, XSHUT is GPIO 49. No
-   `regulator-boot-on`. No `output-high` on the enable pin.
-
-Ranging stays in userspace (`fp5-tof-range`) until the VL53L3CX
-sequence is ported into that IIO `read_raw`.
+Diffstat is 6 files, 333 insertions, 3 deletions. The Kconfig and
+driver text match the 7.2.10 series. The extra inserted line is in
+the binding allOf, because v7.3-rc7 required vdd with
+`const: st,vl53l1x` and this series uses an enum of `st,vl53l1x`
+and `st,vl53l3cx`.
 
 ## Checks
 
-`scripts/checkpatch.pl --strict` on the three patches: 0 errors,
-0 warnings, 0 checks. `spdxcheck.py` could not import `ply`, so that
-helper printed a traceback and did not parse the SPDX line. checkpatch
-still reported the driver patch ready for submission.
+`scripts/checkpatch.pl --strict` on each of the three patches:
+0 errors, 0 warnings, 0 checks.
 
-`make ARCH=arm64 LLVM=1 dt_binding_check DT_SCHEMA_FILES=Documentation/devicetree/bindings/iio/proximity/st,vl53l0x.yaml`
-passed. The binding example built.
+`make O=... ARCH=arm64 LLVM=1 dt_binding_check DT_SCHEMA_FILES=Documentation/devicetree/bindings/iio/proximity/st,vl53l0x.yaml`
+exited 0. The binding example built.
 
-`make ARCH=arm64 LLVM=1 CHECK_DTBS=1 qcom/qcm6490-fairphone-fp5.dtb`
-against the full processed schema (about 27 MB, 5671 schema ids)
-printed two pre-existing warnings: the lpass tx-macro compatible, and
-`sony,imx858` matching no schema. Nothing about `proximity@29` or
-`st,vl53l3cx`. make exited 0. Schema warnings do not fail the build.
-
-`ARCH=arm64 LLVM=1` compiled `drivers/iio/proximity/vl53l3cx-i2c.o`
-and built `qcm6490-fairphone-fp5.dtb` (152718 bytes). The `.ko` was
-not linked: that output directory has no `vmlinux.o`, so modpost
-reported undefined core symbols. Not flashed.
+`make O=... ARCH=arm64 LLVM=1 CHECK_DTBS=1 qcom/qcm6490-fairphone-fp5.dtb`
+exited 0. The built DTB has `proximity@29` compatible `st,vl53l3cx`.
+No schema warning mentioned that node.
 
 ## Commits
 
 ```
-3734217b8 dt-bindings: iio: proximity: document the ST VL53L3CX
-b1fdb97e3 iio: proximity: add an ST VL53L3CX driver
-ec4f97b3c arm64: dts: qcom: qcm6490-fairphone-fp5: add the VL53L3CX
+3c6cd9868 dt-bindings: iio: proximity: document the ST VL53L3CX
+bad3b004b iio: proximity: add an ST VL53L3CX driver
+2fe34ed7d arm64: dts: qcom: qcm6490-fairphone-fp5: add the VL53L3CX
 ```
 
-## Files
-
-```
-0000-cover-letter.patch
-0001-dt-bindings-iio-proximity-document-the-ST-VL53L3CX.patch
-0002-iio-proximity-add-an-ST-VL53L3CX-driver.patch
-0003-arm64-dts-qcom-qcm6490-fairphone-fp5-add-the-VL53L3C.patch
-```
+Local kernel branch `fp5-vl53l3cx-draft` in the 7.3-rc7 clone. Not pushed
+to a kernel remote.

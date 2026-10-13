@@ -1,6 +1,6 @@
-From ec4f97b3cafe62bf5b11ff1b8aab7d140bb4b353 Mon Sep 17 00:00:00 2001
+From 3c6cd9868 Mon Sep 17 00:00:00 2001
 From: isyourbrainfoss <isyourbrainfoss@proton.me>
-Date: Tue, 13 Oct 2026 08:40:29 +0200
+Date: Tue, 13 Oct 2026 09:20:00 +0200
 Subject: [PATCH 0/3] iio: proximity: ST VL53L3CX on the Fairphone 5
 
 The Fairphone 5 rear time-of-flight sensor is an ST VL53L3CX at I2C
@@ -28,8 +28,15 @@ marked regulator-boot-on.
 Do not apply the devicetree patch on a kernel that still ranges
 through i2c-dev. An OF I2C client at 0x29 reserves that address.
 
-Base is sc7280-mainline v7.2.0-sc7280, commit f875148cc9fc ("fixup!
-drivers: gpu: drm: panel: Initial FT8722 support").
+Base is Linux 7.3-rc7, commit 24a19b953 ("Linux 7.3-rc7"). The
+v7.2.0-sc7280 series did not `git am` onto a depth-1 clone: patch 1
+had no blob history for a 3-way merge, and the binding's maintainer
+line is now Siratul Islam <siratul.islam@linux.dev>. The binding was
+ported by hand onto that address. The driver and the board patch
+then applied with no further conflict. Diffstat is 6 files, 333
+insertions, 3 deletions. The extra line against the 7.2.10 series is
+the binding's vdd-supply allOf: v7.3-rc7 still used `const: st,vl53l1x`,
+which this patch turns into an enum of st,vl53l1x and st,vl53l3cx.
 
 Not mailed.
 
@@ -41,12 +48,11 @@ isyourbrainfoss (3):
  .../bindings/iio/proximity/st,vl53l0x.yaml    |  33 ++-
  MAINTAINERS                                   |   7 +
  .../boot/dts/qcom/qcm6490-fairphone-fp5.dts   |  38 ++-
- drivers/iio/proximity/Kconfig                 |  16 ++
+ drivers/iio/proximity/Kconfig                 |  17 ++
  drivers/iio/proximity/Makefile                |   1 +
  drivers/iio/proximity/vl53l3cx-i2c.c          | 240 ++++++++++++++++++
- 6 files changed, 332 insertions(+), 3 deletions(-)
+ 6 files changed, 333 insertions(+), 3 deletions(-)
  create mode 100644 drivers/iio/proximity/vl53l3cx-i2c.c
 
 -- 
 2.55.0
-
