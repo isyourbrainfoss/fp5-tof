@@ -1,0 +1,52 @@
+From ec4f97b3cafe62bf5b11ff1b8aab7d140bb4b353 Mon Sep 17 00:00:00 2001
+From: isyourbrainfoss <isyourbrainfoss@proton.me>
+Date: Tue, 13 Oct 2026 08:40:29 +0200
+Subject: [PATCH 0/3] iio: proximity: ST VL53L3CX on the Fairphone 5
+
+The Fairphone 5 rear time-of-flight sensor is an ST VL53L3CX at I2C
+address 0x29. Its model id is 0xEAAA. A VL53L1X reports 0xEACC. The
+in-tree VL53L1X driver loads a 91-byte configuration from the VL53L1X
+ultra lite driver and continues when the id does not match. That
+configuration leaves the range register at zero on this part. The ST
+VL53LX API, run in userspace, returns millimetres. This series does
+not extend the VL53L1X driver and does not paste that API into the
+kernel.
+
+The binding patch adds compatible st,vl53l3cx to the existing
+VL53L0X/VL53L1X schema and requires vdd-supply. The driver enables
+vdd, releases XSHUT, and accepts only model id 0xEAAA. Distance
+readout returns -EOPNOTSUPP until the VL53L3CX ranging sequence is
+ported. The IIO channel is the ABI that sequence should fill: raw
+millimetres, scale 0.001.
+
+The board patch describes the sensor on GENI I2C9. The interrupt is
+TLMM GPIO 48, edge falling. XSHUT is TLMM GPIO 49, active low. The
+2.8 V rail is the existing fixed regulator VTOF_LDO_2P8, switched by
+TLMM GPIO 141. It stays off until the driver enables vdd. It is not
+marked regulator-boot-on.
+
+Do not apply the devicetree patch on a kernel that still ranges
+through i2c-dev. An OF I2C client at 0x29 reserves that address.
+
+Base is sc7280-mainline v7.2.0-sc7280, commit f875148cc9fc ("fixup!
+drivers: gpu: drm: panel: Initial FT8722 support").
+
+Not mailed.
+
+isyourbrainfoss (3):
+  dt-bindings: iio: proximity: document the ST VL53L3CX
+  iio: proximity: add an ST VL53L3CX driver
+  arm64: dts: qcom: qcm6490-fairphone-fp5: add the VL53L3CX
+
+ .../bindings/iio/proximity/st,vl53l0x.yaml    |  33 ++-
+ MAINTAINERS                                   |   7 +
+ .../boot/dts/qcom/qcm6490-fairphone-fp5.dts   |  38 ++-
+ drivers/iio/proximity/Kconfig                 |  16 ++
+ drivers/iio/proximity/Makefile                |   1 +
+ drivers/iio/proximity/vl53l3cx-i2c.c          | 240 ++++++++++++++++++
+ 6 files changed, 332 insertions(+), 3 deletions(-)
+ create mode 100644 drivers/iio/proximity/vl53l3cx-i2c.c
+
+-- 
+2.55.0
+

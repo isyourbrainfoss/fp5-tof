@@ -1,0 +1,331 @@
+From b1fdb97e39eb6b6979185af33a4adafd844e10a9 Mon Sep 17 00:00:00 2001
+From: isyourbrainfoss <isyourbrainfoss@proton.me>
+Date: Tue, 13 Oct 2026 08:33:06 +0200
+Subject: [PATCH 2/3] iio: proximity: add an ST VL53L3CX driver
+
+The VL53L3CX boots on the same 16-bit register map as the VL53L1X and
+then needs its own ranging sequence. The in-tree VL53L1X driver loads
+a 91-byte configuration from the VL53L1X ultra lite driver and keeps
+going when the model id is not 0xEACC. On a Fairphone 5 that leaves
+the range register at zero. The ST VL53LX API, run in userspace on
+the same sensor, returns millimetres.
+
+Enable vdd, release XSHUT, and accept only model id 0xEAAA. Do not
+load the VL53L1X configuration. Distance readout returns -EOPNOTSUPP
+until the VL53L3CX ranging sequence is ported. The IIO channel is the
+ABI that sequence should fill: raw millimetres, scale 0.001.
+
+Signed-off-by: isyourbrainfoss <isyourbrainfoss@proton.me>
+---
+ MAINTAINERS                          |   7 +
+ drivers/iio/proximity/Kconfig        |  16 ++
+ drivers/iio/proximity/Makefile       |   1 +
+ drivers/iio/proximity/vl53l3cx-i2c.c | 240 +++++++++++++++++++++++++++
+ 4 files changed, 264 insertions(+)
+ create mode 100644 drivers/iio/proximity/vl53l3cx-i2c.c
+
+diff --git a/MAINTAINERS b/MAINTAINERS
+index 8014b9f82..1eb7a9c06 100644
+--- a/MAINTAINERS
++++ b/MAINTAINERS
+@@ -25692,6 +25692,13 @@ S:	Maintained
+ F:	Documentation/devicetree/bindings/iio/proximity/st,vl53l0x.yaml
+ F:	drivers/iio/proximity/vl53l1x-i2c.c
+ 
++ST VL53L3CX ToF RANGER(I2C) IIO DRIVER
++M:	isyourbrainfoss <isyourbrainfoss@proton.me>
++L:	linux-iio@vger.kernel.org
++S:	Maintained
++F:	Documentation/devicetree/bindings/iio/proximity/st,vl53l0x.yaml
++F:	drivers/iio/proximity/vl53l3cx-i2c.c
++
+ STABLE BRANCH
+ M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+ M:	Sasha Levin <sashal@kernel.org>
+diff --git a/drivers/iio/proximity/Kconfig b/drivers/iio/proximity/Kconfig
+index bb77fad2a..1a186aaf0 100644
+--- a/drivers/iio/proximity/Kconfig
++++ b/drivers/iio/proximity/Kconfig
+@@ -259,6 +259,22 @@ config VL53L1X_I2C
+ 	  To compile this driver as a module, choose M here: the
+ 	  module will be called vl53l1x-i2c.
+ 
++config VL53L3CX_I2C
++	tristate "STMicroelectronics VL53L3CX ToF ranger sensor (I2C)"
++	depends on I2C
++	select REGMAP_I2C
++	select RESET_CONTROLLER
++	help
++	  Say Y here to build a driver for the STMicroelectronics VL53L3CX
++	  time-of-flight sensor (model id 0xEAAA).
++
++	  The driver powers the sensor and checks the model id. It does not
++	  yet report a distance. The VL53L1X configuration does not range
++	  this part.
++
++	  To compile this driver as a module, choose M here: the
++	  module will be called vl53l3cx-i2c.
++
+ config AW96103
+ 	tristate "AW96103/AW96105 Awinic proximity sensor"
+ 	select REGMAP_I2C
+diff --git a/drivers/iio/proximity/Makefile b/drivers/iio/proximity/Makefile
+index 4352833dd..1f7b860f3 100644
+--- a/drivers/iio/proximity/Makefile
++++ b/drivers/iio/proximity/Makefile
+@@ -24,5 +24,6 @@ obj-$(CONFIG_SX9500)		+= sx9500.o
+ obj-$(CONFIG_VCNL3020)		+= vcnl3020.o
+ obj-$(CONFIG_VL53L0X_I2C)	+= vl53l0x-i2c.o
+ obj-$(CONFIG_VL53L1X_I2C)	+= vl53l1x-i2c.o
++obj-$(CONFIG_VL53L3CX_I2C)	+= vl53l3cx-i2c.o
+ obj-$(CONFIG_AW96103)		+= aw96103.o
+ 
+diff --git a/drivers/iio/proximity/vl53l3cx-i2c.c b/drivers/iio/proximity/vl53l3cx-i2c.c
+new file mode 100644
+index 000000000..fa89db64c
+--- /dev/null
++++ b/drivers/iio/proximity/vl53l3cx-i2c.c
+@@ -0,0 +1,240 @@
++// SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
++/*
++ * Support for ST VL53L3CX FlightSense ToF ranging sensor on an I2C bus.
++ *
++ * Copyright (C) 2026 isyourbrainfoss <isyourbrainfoss@proton.me>
++ *
++ * Datasheet available at
++ * <https://www.st.com/resource/en/datasheet/vl53l3cx.pdf>
++ *
++ * Default 7-bit I2C address 0x29.
++ *
++ * The VL53L3CX uses a 16-bit register map, like the VL53L1X, but
++ * IDENTIFICATION__MODEL_ID is 0xEAAA rather than 0xEACC. The 91-byte
++ * VL53L1X configuration does not produce a range on this part. This
++ * driver brings the chip out of reset and checks that id. It does not
++ * report a distance: that needs the VL53L3CX ranging sequence.
++ */
++
++#include <linux/array_size.h>
++#include <linux/bits.h>
++#include <linux/delay.h>
++#include <linux/dev_printk.h>
++#include <linux/err.h>
++#include <linux/i2c.h>
++#include <linux/interrupt.h>
++#include <linux/mod_devicetable.h>
++#include <linux/module.h>
++#include <linux/regmap.h>
++#include <linux/regulator/consumer.h>
++#include <linux/reset.h>
++#include <linux/time.h>
++#include <linux/types.h>
++
++#include <asm/byteorder.h>
++
++#include <linux/iio/iio.h>
++
++#define VL53L3CX_REG_FIRMWARE__SYSTEM_STATUS		0x00E5
++#define VL53L3CX_REG_IDENTIFICATION__MODEL_ID		0x010F
++
++#define VL53L3CX_MODEL_ID				0xEAAA
++
++#define VL53L3CX_BOOT_TIME_US				1200
++#define VL53L3CX_FW_POLL_US				(1 * USEC_PER_MSEC)
++#define VL53L3CX_FW_TIMEOUT_US				(100 * USEC_PER_MSEC)
++
++struct vl53l3cx_data {
++	struct regmap *regmap;
++};
++
++static const struct regmap_range vl53l3cx_volatile_ranges[] = {
++	regmap_reg_range(VL53L3CX_REG_FIRMWARE__SYSTEM_STATUS,
++			 VL53L3CX_REG_FIRMWARE__SYSTEM_STATUS),
++	regmap_reg_range(VL53L3CX_REG_IDENTIFICATION__MODEL_ID,
++			 VL53L3CX_REG_IDENTIFICATION__MODEL_ID + 1),
++};
++
++static const struct regmap_access_table vl53l3cx_volatile_table = {
++	.yes_ranges = vl53l3cx_volatile_ranges,
++	.n_yes_ranges = ARRAY_SIZE(vl53l3cx_volatile_ranges),
++};
++
++static const struct regmap_config vl53l3cx_regmap_config = {
++	.reg_bits = 16,
++	.val_bits = 8,
++	/* MODEL_ID is 16-bit. +1 covers the second byte at 0x0110. */
++	.max_register = VL53L3CX_REG_IDENTIFICATION__MODEL_ID + 1,
++	.cache_type = REGCACHE_MAPLE,
++	.volatile_table = &vl53l3cx_volatile_table,
++};
++
++static int vl53l3cx_read_u16(struct vl53l3cx_data *data, u16 reg, u16 *val)
++{
++	__be16 buf;
++	int ret;
++
++	ret = regmap_bulk_read(data->regmap, reg, &buf, sizeof(buf));
++	if (ret)
++		return ret;
++
++	*val = be16_to_cpu(buf);
++	return 0;
++}
++
++static irqreturn_t vl53l3cx_irq(int irq, void *priv)
++{
++	struct iio_dev *indio_dev = priv;
++
++	dev_dbg(&indio_dev->dev, "irq %d\n", irq);
++	return IRQ_HANDLED;
++}
++
++static int vl53l3cx_read_raw(struct iio_dev *indio_dev,
++			     const struct iio_chan_spec *chan,
++			     int *val, int *val2, long mask)
++{
++	if (chan->type != IIO_DISTANCE)
++		return -EINVAL;
++
++	switch (mask) {
++	case IIO_CHAN_INFO_RAW:
++		dev_warn_once(&indio_dev->dev,
++			      "distance readout is not implemented\n");
++		return -EOPNOTSUPP;
++	case IIO_CHAN_INFO_SCALE:
++		/* Metres. Raw values, once implemented, are millimetres. */
++		*val = 0;
++		*val2 = 1000;
++		return IIO_VAL_INT_PLUS_MICRO;
++	default:
++		return -EINVAL;
++	}
++}
++
++static const struct iio_chan_spec vl53l3cx_channels[] = {
++	{
++		.type = IIO_DISTANCE,
++		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
++				      BIT(IIO_CHAN_INFO_SCALE),
++		.scan_index = 0,
++		.scan_type = {
++			.sign = 'u',
++			.realbits = 16,
++			.storagebits = 16,
++		},
++	},
++};
++
++static const struct iio_info vl53l3cx_info = {
++	.read_raw = vl53l3cx_read_raw,
++};
++
++static int vl53l3cx_identify(struct vl53l3cx_data *data)
++{
++	struct device *dev = regmap_get_device(data->regmap);
++	unsigned int status;
++	u16 model_id;
++	int ret;
++
++	ret = regmap_read_poll_timeout(data->regmap,
++				       VL53L3CX_REG_FIRMWARE__SYSTEM_STATUS,
++				       status, status & BIT(0),
++				       VL53L3CX_FW_POLL_US,
++				       VL53L3CX_FW_TIMEOUT_US);
++	if (ret)
++		return dev_err_probe(dev, ret, "firmware boot timeout\n");
++
++	ret = vl53l3cx_read_u16(data, VL53L3CX_REG_IDENTIFICATION__MODEL_ID,
++				&model_id);
++	if (ret)
++		return ret;
++
++	if (model_id != VL53L3CX_MODEL_ID)
++		return dev_err_probe(dev, -ENODEV,
++				     "model id 0x%04x is not VL53L3CX\n",
++				     model_id);
++
++	dev_dbg(dev, "VL53L3CX model id 0x%04x, firmware status 0x%02x\n",
++		model_id, status);
++	return 0;
++}
++
++static int vl53l3cx_probe(struct i2c_client *client)
++{
++	struct device *dev = &client->dev;
++	struct vl53l3cx_data *data;
++	struct iio_dev *indio_dev;
++	struct reset_control *xshut;
++	int ret;
++
++	indio_dev = devm_iio_device_alloc(dev, sizeof(*data));
++	if (!indio_dev)
++		return -ENOMEM;
++
++	data = iio_priv(indio_dev);
++
++	data->regmap = devm_regmap_init_i2c(client, &vl53l3cx_regmap_config);
++	if (IS_ERR(data->regmap))
++		return dev_err_probe(dev, PTR_ERR(data->regmap),
++				     "regmap initialization failed\n");
++
++	ret = devm_regulator_get_enable(dev, "vdd");
++	if (ret)
++		return dev_err_probe(dev, ret, "failed to enable vdd\n");
++
++	/*
++	 * XSHUT low holds the chip in hardware standby. Releasing it is
++	 * the reset. reset-gpios is active-low, so deasserted is "run".
++	 */
++	xshut = devm_reset_control_get_optional_exclusive_deasserted(dev, NULL);
++	if (IS_ERR(xshut))
++		return dev_err_probe(dev, PTR_ERR(xshut), "cannot get XSHUT\n");
++
++	fsleep(VL53L3CX_BOOT_TIME_US);
++
++	ret = vl53l3cx_identify(data);
++	if (ret)
++		return ret;
++
++	indio_dev->name = "vl53l3cx";
++	indio_dev->info = &vl53l3cx_info;
++	indio_dev->channels = vl53l3cx_channels;
++	indio_dev->num_channels = ARRAY_SIZE(vl53l3cx_channels);
++	indio_dev->modes = INDIO_DIRECT_MODE;
++
++	if (client->irq) {
++		ret = devm_request_irq(dev, client->irq, vl53l3cx_irq, 0,
++				       indio_dev->name, indio_dev);
++		if (ret)
++			return dev_err_probe(dev, ret, "failed to request irq\n");
++	}
++
++	return devm_iio_device_register(dev, indio_dev);
++}
++
++static const struct i2c_device_id vl53l3cx_id[] = {
++	{ .name = "vl53l3cx" },
++	{ }
++};
++MODULE_DEVICE_TABLE(i2c, vl53l3cx_id);
++
++static const struct of_device_id vl53l3cx_of_match[] = {
++	{ .compatible = "st,vl53l3cx" },
++	{ }
++};
++MODULE_DEVICE_TABLE(of, vl53l3cx_of_match);
++
++static struct i2c_driver vl53l3cx_driver = {
++	.driver = {
++		.name = "vl53l3cx-i2c",
++		.of_match_table = vl53l3cx_of_match,
++	},
++	.probe = vl53l3cx_probe,
++	.id_table = vl53l3cx_id,
++};
++module_i2c_driver(vl53l3cx_driver);
++
++MODULE_AUTHOR("isyourbrainfoss <isyourbrainfoss@proton.me>");
++MODULE_DESCRIPTION("ST VL53L3CX ToF ranging sensor driver");
++MODULE_LICENSE("Dual BSD/GPL");
+-- 
+2.55.0
+

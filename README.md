@@ -59,9 +59,13 @@ line.
 Mainline `drivers/iio/proximity/vl53l1x-i2c.c` probes this part and
 does not range it. The driver accepts a foreign model id and continues.
 The L1X config blob does not range an L3, so teaching that driver the
-id `0xEAAA` is not sufficient. A future compatible is `st,vl53l3cx`.
-The binding draft and `qcm6490-fairphone-fp5-tof.dtsi.snippet` have not
-been mailed.
+id `0xEAAA` is not sufficient. `series/` is a draft against
+sc7280-mainline v7.2.0-sc7280: `st,vl53l3cx` on the existing
+`st,vl53l0x.yaml` binding, a driver that checks model id `0xEAAA` and
+does not range yet, and the Fairphone 5 node. It has not been mailed.
+`bindings/st,vl53l3cx.yaml` and
+`qcm6490-fairphone-fp5-tof.dtsi.snippet` are the earlier separate
+drafts.
 
 ## Reproduce
 
@@ -105,7 +109,8 @@ fp5-tof-view.py     GTK4 readout of the live script
 fp5_tof.py          parsers and the GPIO allow-list
 linux-shim/         small Arduino Wire shim for the ST API
 oot/                tof-rail.ko, enables VTOF_LDO_2P8
-bindings/           draft st,vl53l3cx binding (not mailed)
+bindings/           earlier separate st,vl53l3cx binding (not mailed)
+series/             mainline draft against v7.2.0-sc7280 (not mailed)
 third_party/VL53L3CX   STM32duino library, BSD-3-Clause
 ```
 

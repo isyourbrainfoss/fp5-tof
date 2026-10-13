@@ -1,0 +1,93 @@
+From ec4f97b3cafe62bf5b11ff1b8aab7d140bb4b353 Mon Sep 17 00:00:00 2001
+From: isyourbrainfoss <isyourbrainfoss@proton.me>
+Date: Tue, 13 Oct 2026 08:33:06 +0200
+Subject: [PATCH 3/3] arm64: dts: qcom: qcm6490-fairphone-fp5: add the VL53L3CX
+
+The rear time-of-flight sensor is a VL53L3CX at I2C address 0x29 on
+GENI I2C9, the same bus as the NFC controller. Android names the node
+stmvl53l3 and uses the vendor compatible st,stmvl53l1. The model id
+register reads 0xEAAA, so describe it as st,vl53l3cx.
+
+The interrupt is TLMM GPIO 48, edge falling. XSHUT is TLMM GPIO 49,
+active low. The 2.8 V rail is the existing fixed regulator
+VTOF_LDO_2P8, switched by TLMM GPIO 141. Leave that regulator off
+until a driver enables vdd. Do not mark it regulator-boot-on.
+
+Signed-off-by: isyourbrainfoss <isyourbrainfoss@proton.me>
+---
+ .../boot/dts/qcom/qcm6490-fairphone-fp5.dts   | 38 ++++++++++++++++++-
+ 1 file changed, 37 insertions(+), 1 deletion(-)
+
+diff --git a/arch/arm64/boot/dts/qcom/qcm6490-fairphone-fp5.dts b/arch/arm64/boot/dts/qcom/qcm6490-fairphone-fp5.dts
+index 29d6265a1..8bac0b898 100644
+--- a/arch/arm64/boot/dts/qcom/qcm6490-fairphone-fp5.dts
++++ b/arch/arm64/boot/dts/qcom/qcm6490-fairphone-fp5.dts
+@@ -236,6 +236,9 @@ vreg_vtof_ldo_2p8: regulator-vtof-ldo-2p8 {
+ 		gpio = <&tlmm 141 GPIO_ACTIVE_HIGH>;
+ 		enable-active-high;
+ 
++		pinctrl-0 = <&tof_vdd_en_default>;
++		pinctrl-names = "default";
++
+ 		vin-supply = <&vreg_bob>;
+ 	};
+ 
+@@ -1005,7 +1008,19 @@ &i2c9 {
+ 	status = "okay";
+ 
+ 	/* ST21NFC NFC @ 28 */
+-	/* VL53L3 ToF @ 29 */
++
++	proximity@29 {
++		compatible = "st,vl53l3cx";
++		reg = <0x29>;
++
++		vdd-supply = <&vreg_vtof_ldo_2p8>;
++
++		interrupts-extended = <&tlmm 48 IRQ_TYPE_EDGE_FALLING>;
++		reset-gpios = <&tlmm 49 GPIO_ACTIVE_LOW>;
++
++		pinctrl-0 = <&tof_int_default>, <&tof_xshut_default>;
++		pinctrl-names = "default";
++	};
+ };
+ 
+ &ipa {
+@@ -1595,6 +1610,20 @@ disp_reset_n_suspend: disp-reset-n-suspend-state {
+ 		bias-pull-down;
+ 	};
+ 
++	tof_int_default: tof-int-default-state {
++		pins = "gpio48";
++		function = "gpio";
++		drive-strength = <2>;
++		bias-pull-up;
++	};
++
++	tof_xshut_default: tof-xshut-default-state {
++		pins = "gpio49";
++		function = "gpio";
++		drive-strength = <2>;
++		bias-disable;
++	};
++
+ 	usb_redrive_1v8_en_default: usb-redrive-1v8-en-default-state {
+ 		pins = "gpio61";
+ 		function = "gpio";
+@@ -1643,6 +1672,13 @@ aw86927_int_default: aw86927-int-default-state {
+ 		bias-pull-up;
+ 	};
+ 
++	tof_vdd_en_default: tof-vdd-en-default-state {
++		pins = "gpio141";
++		function = "gpio";
++		drive-strength = <2>;
++		bias-disable;
++	};
++
+ 	hall_sensor_default: hall-sensor-default-state {
+ 		pins = "gpio155";
+ 		function = "gpio";
+-- 
+2.55.0
+
