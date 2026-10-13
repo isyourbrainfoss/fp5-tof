@@ -1,4 +1,4 @@
-From b1fdb97e39eb6b6979185af33a4adafd844e10a9 Mon Sep 17 00:00:00 2001
+From 625181e8105c85516f9f9d9f3d7bf94d038e3052 Mon Sep 17 00:00:00 2001
 From: isyourbrainfoss <isyourbrainfoss@proton.me>
 Date: Tue, 13 Oct 2026 08:33:06 +0200
 Subject: [PATCH 2/3] iio: proximity: add an ST VL53L3CX driver
@@ -25,7 +25,7 @@ Signed-off-by: isyourbrainfoss <isyourbrainfoss@proton.me>
  create mode 100644 drivers/iio/proximity/vl53l3cx-i2c.c
 
 diff --git a/MAINTAINERS b/MAINTAINERS
-index 8014b9f82..1eb7a9c06 100644
+index 95cd976a0..0022f300a 100644
 --- a/MAINTAINERS
 +++ b/MAINTAINERS
 @@ -25692,6 +25692,13 @@ S:	Maintained

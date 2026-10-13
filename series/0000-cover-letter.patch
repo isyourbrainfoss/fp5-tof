@@ -1,6 +1,6 @@
-From ec4f97b3cafe62bf5b11ff1b8aab7d140bb4b353 Mon Sep 17 00:00:00 2001
+From 511c4feb3f4c491c13322cf459efef20f9fe82f1 Mon Sep 17 00:00:00 2001
 From: isyourbrainfoss <isyourbrainfoss@proton.me>
-Date: Tue, 13 Oct 2026 08:40:29 +0200
+Date: Tue, 13 Oct 2026 09:20:00 +0200
 Subject: [PATCH 0/3] iio: proximity: ST VL53L3CX on the Fairphone 5
 
 The Fairphone 5 rear time-of-flight sensor is an ST VL53L3CX at I2C
@@ -28,8 +28,10 @@ marked regulator-boot-on.
 Do not apply the devicetree patch on a kernel that still ranges
 through i2c-dev. An OF I2C client at 0x29 reserves that address.
 
-Base is sc7280-mainline v7.2.0-sc7280, commit f875148cc9fc ("fixup!
-drivers: gpu: drm: panel: Initial FT8722 support").
+Base is Linux 7.2.10, commit 7b20d05fd ("Linux 7.2.10"). git am
+applied all three patches with no conflicts. This is kernel.org
+stable, not the sc7280-mainline fork. pmaports' Fairphone 5 kernel
+package is still linux-postmarketos-qcom-sc7280 7.2.9-r1.
 
 Not mailed.
 
@@ -49,4 +51,3 @@ isyourbrainfoss (3):
 
 -- 
 2.55.0
-

@@ -59,10 +59,11 @@ line.
 Mainline `drivers/iio/proximity/vl53l1x-i2c.c` probes this part and
 does not range it. The driver accepts a foreign model id and continues.
 The L1X config blob does not range an L3, so teaching that driver the
-id `0xEAAA` is not sufficient. `series/` is a draft against
-sc7280-mainline v7.2.0-sc7280: `st,vl53l3cx` on the existing
-`st,vl53l0x.yaml` binding, a driver that checks model id `0xEAAA` and
-does not range yet, and the Fairphone 5 node. It has not been mailed.
+id `0xEAAA` is not sufficient. `series/` on this branch is that draft rebased onto Linux 7.2.10
+(commit 7b20d05fd). `st,vl53l3cx` stays on the existing
+`st,vl53l0x.yaml` binding. The driver checks model id `0xEAAA` and
+does not range yet. The Fairphone 5 node is in the series. It has
+not been mailed. The v7.2.0-sc7280 copy remains on `mainline-draft`.
 `bindings/st,vl53l3cx.yaml` and
 `qcm6490-fairphone-fp5-tof.dtsi.snippet` are the earlier separate
 drafts.
